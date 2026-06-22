@@ -2,32 +2,53 @@ import streamlit as st
 import pdfplumber
 import pandas as pd
 import matplotlib.pyplot as plt
+import numpy as np
 
 from collections import Counter
-from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
+from reportlab.platypus import (
+    SimpleDocTemplate,
+    Paragraph,
+    Spacer
+)
+
+from reportlab.lib.styles import getSampleStyleSheet
+
+import tempfile
 import re
 
 # ---------------- PAGE CONFIG ----------------
 
 st.set_page_config(
-    page_title="🎯 AI Exam Question Predictor",
-    page_icon="🎯",
+
+    page_title="🚀 PassMate Pilot",
+
+    page_icon="🚀",
+
     layout="wide"
+
 )
 
 # ---------------- THEME ----------------
 
 st.markdown("""
+
 <style>
 
 .stApp{
 
 background:linear-gradient(
+
 135deg,
+
 #000000,
+
 #1a120b,
+
 #3e2723
+
 );
 
 color:white;
@@ -89,35 +110,42 @@ border-radius:15px;
 }
 
 </style>
+
 """, unsafe_allow_html=True)
 
 # ---------------- TITLE ----------------
 
-st.title("🎯 AI Exam Question Predictor")
+st.title("🎯 AI Exam Question Predictor Pro")
 
 st.markdown("""
+
 ### Upload Previous Year Question Papers
 
 Find:
 
-✅ Repeated Questions  
-✅ Important Topics  
-✅ Topic Probability  
-✅ Charts  
-✅ Download CSV
+✅ Repeated Questions
 
-No API Required 🚀
+✅ Similar Questions
+
+✅ Important Topics
+
+✅ Topic Probability
+
+✅ Charts
+
+✅ Download PDF Report
+
 """)
 
-# ---------------- UPLOADER ----------------
+# ---------------- UPLOAD ----------------
 
 uploaded_files = st.file_uploader(
 
-    "📄 Upload PDF Files",
+"Upload PDFs",
 
-    type=["pdf"],
+type=["pdf"],
 
-    accept_multiple_files=True
+accept_multiple_files=True
 
 )
 
@@ -155,29 +183,271 @@ def extract_questions(text):
 
     return questions
 
+# ---------------- SIMILAR QUESTIONS ----------------
 
-# ---------------- TOPIC EXTRACTION ----------------
+def group_similar_questions(questions):
 
-def extract_topics(questions):
+    if len(questions)<=1:
 
-    vectorizer=CountVectorizer(
+        return questions
 
-        stop_words='english',
+    tfidf=TfidfVectorizer(
 
-        max_features=20
+        stop_words='english'
 
     )
 
-    X=vectorizer.fit_transform(questions)
+    X=tfidf.fit_transform(
 
-    words=vectorizer.get_feature_names_out()
+        questions
 
-    counts=X.sum(axis=0).A1
+    )
 
-    topics=dict(zip(words,counts))
+    sim=cosine_similarity(X)
 
-    return topics
+    grouped=[]
 
+    used=set()
+
+    for i in range(len(questions)):
+
+        if i in used:
+
+            continue
+
+        temp=[questions[i]]
+
+        used.add(i)
+
+        for j in range(i+1,len(questions)):
+
+            if j in used:
+
+                continue
+
+            if sim[i][j]>0.6:
+
+                temp.append(
+
+                    questions[j]
+
+                )
+
+                used.add(j)
+
+        grouped.append(
+
+            temp[0]
+
+        )
+
+    return grouped
+
+# ---------------- TOPIC EXTRACTION ----------------
+
+TOPICS=[
+
+"deadlock",
+
+"process",
+
+"scheduling",
+
+"thread",
+
+"paging",
+
+"inheritance",
+
+"oop",
+
+"java",
+
+"jdbc",
+
+"exception",
+
+"interface",
+
+"multithreading",
+
+"collection",
+
+"thevenin",
+
+"norton",
+
+"mesh",
+
+"nodal",
+
+"resonance",
+
+"network",
+
+"dbms",
+
+"normalization",
+
+"sql",
+
+"testing",
+
+"osi",
+
+"tcp",
+
+"udp"
+
+]
+
+def extract_topics(questions):
+
+    topic_count={}
+
+    text=" ".join(
+
+        questions
+
+    ).lower()
+
+    for topic in TOPICS:
+
+        count=text.count(
+
+            topic
+
+        )
+
+        if count>0:
+
+            topic_count[topic]=count
+
+    return topic_count
+
+# ---------------- PDF REPORT ----------------
+
+def generate_report(
+
+questions,
+
+topics
+
+):
+
+    temp=tempfile.NamedTemporaryFile(
+
+        delete=False,
+
+        suffix=".pdf"
+
+    )
+
+    doc=SimpleDocTemplate(
+
+        temp.name
+
+    )
+
+    styles=getSampleStyleSheet()
+
+    story=[]
+
+    story.append(
+
+        Paragraph(
+
+            "<b>AI Exam Question Predictor Report</b>",
+
+            styles["Title"]
+
+        )
+
+    )
+
+    story.append(
+
+        Spacer(
+
+            1,
+
+            20
+
+        )
+
+    )
+
+    story.append(
+
+        Paragraph(
+
+            "<b>Important Questions</b>",
+
+            styles["Heading2"]
+
+        )
+
+    )
+
+    for q in questions[:10]:
+
+        story.append(
+
+            Paragraph(
+
+                q,
+
+                styles["BodyText"]
+
+            )
+
+        )
+
+    story.append(
+
+        Spacer(
+
+            1,
+
+            20
+
+        )
+
+    )
+
+    story.append(
+
+        Paragraph(
+
+            "<b>Important Topics</b>",
+
+            styles["Heading2"]
+
+        )
+
+    )
+
+    for t,c in topics.items():
+
+        story.append(
+
+            Paragraph(
+
+                f"{t} : {c}",
+
+                styles["BodyText"]
+
+            )
+
+        )
+
+    doc.build(
+
+        story
+
+    )
+
+    return temp.name
 
 # ---------------- PROCESS ----------------
 
@@ -185,13 +455,21 @@ all_questions=[]
 
 if uploaded_files:
 
-    with st.spinner("🔍 Analyzing PDFs..."):
+    with st.spinner(
+
+        "Analyzing PDFs..."
+
+    ):
 
         for file in uploaded_files:
 
             try:
 
-                with pdfplumber.open(file) as pdf:
+                with pdfplumber.open(
+
+                    file
+
+                ) as pdf:
 
                     text=""
 
@@ -203,9 +481,17 @@ if uploaded_files:
 
                             text+=page_text+"\n"
 
-                    questions=extract_questions(text)
+                    q=extract_questions(
 
-                    all_questions.extend(questions)
+                        text
+
+                    )
+
+                    all_questions.extend(
+
+                        q
+
+                    )
 
             except:
 
@@ -215,12 +501,21 @@ if uploaded_files:
 
                 )
 
-
 # ---------------- RESULTS ----------------
 
 if len(all_questions)>0:
 
-    counter=Counter(all_questions)
+    similar=group_similar_questions(
+
+        all_questions
+
+    )
+
+    counter=Counter(
+
+        similar
+
+    )
 
     df=pd.DataFrame(
 
@@ -244,13 +539,17 @@ if len(all_questions)>0:
 
     )
 
-    st.success("✅ Analysis Complete")
+    st.success(
+
+        "Analysis Complete"
+
+    )
 
     c1,c2,c3=st.columns(3)
 
     c1.metric(
 
-        "📄 Total Questions",
+        "Total Questions",
 
         len(all_questions)
 
@@ -258,7 +557,7 @@ if len(all_questions)>0:
 
     c2.metric(
 
-        "🧠 Unique Questions",
+        "Unique Questions",
 
         len(df)
 
@@ -266,17 +565,19 @@ if len(all_questions)>0:
 
     c3.metric(
 
-        "🔥 Max Frequency",
+        "Important Topics",
 
-        df["Frequency"].max()
+        len(TOPICS)
 
     )
 
     st.divider()
 
-    # Questions
+    st.subheader(
 
-    st.subheader("🔥 Most Repeated Questions")
+        "🔥 Important Questions"
+
+    )
 
     st.dataframe(
 
@@ -287,44 +588,6 @@ if len(all_questions)>0:
     )
 
     st.divider()
-
-    # Important Questions
-
-    st.subheader(
-
-        "🎯 Predicted Important Questions"
-
-    )
-
-    important=df[
-
-        df["Frequency"]>=2
-
-    ]
-
-    if len(important):
-
-        for q in important["Question"]:
-
-            st.write("✅",q)
-
-    else:
-
-        st.info(
-
-            "Upload more papers."
-
-        )
-
-    st.divider()
-
-    # Topics
-
-    st.subheader(
-
-        "🧠 Important Topics"
-
-    )
 
     topics=extract_topics(
 
@@ -346,95 +609,119 @@ if len(all_questions)>0:
 
     )
 
-    topic_df=topic_df.sort_values(
+    if len(topic_df)>0:
 
-        by="Count",
+        topic_df=topic_df.sort_values(
 
-        ascending=False
+            by="Count",
 
-    )
+            ascending=False
 
-    topic_df["Probability"]=round(
+        )
 
-        topic_df["Count"]
+        topic_df["Probability"]=round(
 
-        /
+            topic_df["Count"]
 
-        topic_df["Count"].sum()
+            /
 
-        *100,
+            topic_df["Count"].sum()
 
-        2
+            *100,
 
-    )
+            2
 
-    st.dataframe(
+        )
 
-        topic_df,
+        st.subheader(
 
-        use_container_width=True
+            "🧠 Important Topics"
 
-    )
+        )
 
-    st.divider()
+        st.dataframe(
 
-    # Chart
+            topic_df,
 
-    st.subheader(
+            use_container_width=True
 
-        "📊 Topic Frequency Chart"
+        )
 
-    )
+        st.divider()
 
-    fig,ax=plt.subplots(
+        st.subheader(
 
-        figsize=(8,4)
+            "📊 Topic Chart"
 
-    )
+        )
 
-    top10=topic_df.head(10)
+        fig,ax=plt.subplots(
 
-    ax.bar(
+            figsize=(8,4)
 
-        top10["Topic"],
+        )
 
-        top10["Count"]
+        top=topic_df.head(10)
 
-    )
+        ax.bar(
 
-    plt.xticks(rotation=45)
+            top["Topic"],
 
-    st.pyplot(fig)
+            top["Count"]
 
-    st.divider()
+        )
 
-    # Download CSV
+        plt.xticks(
 
-    csv=topic_df.to_csv(
+            rotation=45
 
-        index=False
+        )
 
-    )
+        st.pyplot(
 
-    st.download_button(
+            fig
 
-        "⬇ Download Topic Analysis CSV",
+        )
 
-        csv,
+        st.divider()
 
-        file_name=
+        report=generate_report(
 
-        "topic_analysis.csv",
+            list(
 
-        mime="text/csv"
+                df["Question"]
 
-    )
+            ),
+
+            topics
+
+        )
+
+        with open(
+
+            report,
+
+            "rb"
+
+        ) as f:
+
+            st.download_button(
+
+                "⬇ Download PDF Report",
+
+                f,
+
+                file_name="AI_Exam_Report.pdf",
+
+                mime="application/pdf"
+
+            )
 
 else:
 
     st.info(
 
-        "👆 Upload at least 2-5 PDFs."
+        "Upload at least 2-5 PDFs."
 
     )
 
@@ -442,18 +729,20 @@ st.divider()
 
 st.markdown("""
 
-### Best Results
+### Recommended Subjects
 
-Upload papers of:
+☕ Java Programming
 
-📘 Operating System  
-📘 Computer Networks  
-📘 DBMS  
-📘 Data Structures  
-📘 Software Engineering  
+📡 Network Theory
 
-The more PDFs you upload,
+💾 DBMS
 
-the better the predictions.
+🌐 Computer Networks
+
+🖥 Operating System
+
+Best Results:
+
+Upload 5-10 previous year papers.
 
 """)
