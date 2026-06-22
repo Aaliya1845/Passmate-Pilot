@@ -3,3 +3,5 @@ pdfplumber
 pandas
 scikit-learn
 matplotlib
+reportlab
+numpy
