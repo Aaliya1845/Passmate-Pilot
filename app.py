@@ -119,33 +119,37 @@ st.title("🚀 PassMate Pilot")
 
 st.markdown("""
 
-### Upload Previous Year Question Papers
+### Your Smart AI Exam Companion
 
-Find:
+📚 Upload Previous Year Papers
 
-✅ Repeated Questions
+PassMate Pilot helps you discover:
+
+✅ Important Questions
 
 ✅ Similar Questions
 
 ✅ Important Topics
 
-✅ Topic Probability
+✅ Probability of Topics
 
-✅ Charts
+✅ Smart Charts
 
-✅ Download PDF Report
+✅ Download PDF Reports
+
+🎯 Predict Smarter • Study Better • Pass Confidently
 
 """)
 
-# ---------------- UPLOAD ----------------
+# ---------------- FILE UPLOADER ----------------
 
 uploaded_files = st.file_uploader(
 
-"Upload PDFs",
+    "📄 Upload Previous Year Question Papers",
 
-type=["pdf"],
+    type=["pdf"],
 
-accept_multiple_files=True
+    accept_multiple_files=True
 
 )
 
@@ -183,7 +187,8 @@ def extract_questions(text):
 
     return questions
 
-# ---------------- SIMILAR QUESTIONS ----------------
+
+# ---------------- SIMILAR QUESTION DETECTION ----------------
 
 def group_similar_questions(questions):
 
@@ -203,7 +208,7 @@ def group_similar_questions(questions):
 
     )
 
-    sim=cosine_similarity(X)
+    similarity=cosine_similarity(X)
 
     grouped=[]
 
@@ -225,7 +230,7 @@ def group_similar_questions(questions):
 
                 continue
 
-            if sim[i][j]>0.6:
+            if similarity[i][j]>0.6:
 
                 temp.append(
 
@@ -243,7 +248,8 @@ def group_similar_questions(questions):
 
     return grouped
 
-# ---------------- TOPIC EXTRACTION ----------------
+
+# ---------------- TOPIC LIST ----------------
 
 TOPICS=[
 
@@ -301,6 +307,9 @@ TOPICS=[
 
 ]
 
+
+# ---------------- TOPIC EXTRACTION ----------------
+
 def extract_topics(questions):
 
     topic_count={}
@@ -324,6 +333,7 @@ def extract_topics(questions):
             topic_count[topic]=count
 
     return topic_count
+
 
 # ---------------- PDF REPORT ----------------
 
@@ -357,7 +367,7 @@ topics
 
         Paragraph(
 
-            "<b>AI Exam Question Predictor Report</b>",
+            "<b>PassMate Pilot - AI Exam Analysis Report</b>",
 
             styles["Title"]
 
@@ -449,27 +459,19 @@ topics
 
     return temp.name
 
-# ---------------- PROCESS ----------------
+# ---------------- PROCESS PDFs ----------------
 
 all_questions=[]
 
 if uploaded_files:
 
-    with st.spinner(
-
-        "Analyzing PDFs..."
-
-    ):
+    with st.spinner("🔍 Analyzing PDFs..."):
 
         for file in uploaded_files:
 
             try:
 
-                with pdfplumber.open(
-
-                    file
-
-                ) as pdf:
+                with pdfplumber.open(file) as pdf:
 
                     text=""
 
@@ -481,31 +483,24 @@ if uploaded_files:
 
                             text+=page_text+"\n"
 
-                    q=extract_questions(
+                    questions=extract_questions(text)
 
-                        text
-
-                    )
-
-                    all_questions.extend(
-
-                        q
-
-                    )
+                    all_questions.extend(questions)
 
             except:
 
                 st.warning(
 
-                    f"Could not read {file.name}"
+                    f"❌ Could not read {file.name}"
 
                 )
+
 
 # ---------------- RESULTS ----------------
 
 if len(all_questions)>0:
 
-    similar=group_similar_questions(
+    similar_questions=group_similar_questions(
 
         all_questions
 
@@ -513,7 +508,7 @@ if len(all_questions)>0:
 
     counter=Counter(
 
-        similar
+        similar_questions
 
     )
 
@@ -539,17 +534,13 @@ if len(all_questions)>0:
 
     )
 
-    st.success(
-
-        "Analysis Complete"
-
-    )
+    st.success("✅ Analysis Complete")
 
     c1,c2,c3=st.columns(3)
 
     c1.metric(
 
-        "Total Questions",
+        "📄 Total Questions",
 
         len(all_questions)
 
@@ -557,7 +548,7 @@ if len(all_questions)>0:
 
     c2.metric(
 
-        "Unique Questions",
+        "🧠 Unique Questions",
 
         len(df)
 
@@ -565,13 +556,15 @@ if len(all_questions)>0:
 
     c3.metric(
 
-        "Important Topics",
+        "🔥 Most Repeated",
 
-        len(TOPICS)
+        df["Frequency"].max()
 
     )
 
     st.divider()
+
+    # Important Questions
 
     st.subheader(
 
@@ -588,6 +581,8 @@ if len(all_questions)>0:
     )
 
     st.divider()
+
+    # Topics
 
     topics=extract_topics(
 
@@ -633,9 +628,23 @@ if len(all_questions)>0:
 
         )
 
+        topic_df["Chance"]=round(
+
+            topic_df["Count"]
+
+            /
+
+            topic_df["Count"].max()
+
+            *100,
+
+            0
+
+        )
+
         st.subheader(
 
-            "🧠 Important Topics"
+            "🎯 Most Likely To Appear"
 
         )
 
@@ -649,9 +658,11 @@ if len(all_questions)>0:
 
         st.divider()
 
+        # Chart
+
         st.subheader(
 
-            "📊 Topic Chart"
+            "📊 Topic Frequency Chart"
 
         )
 
@@ -677,13 +688,95 @@ if len(all_questions)>0:
 
         )
 
-        st.pyplot(
+        st.pyplot(fig)
 
-            fig
+        st.divider()
+
+        # Study Planner
+
+        st.subheader(
+
+            "📅 Study Planner"
 
         )
 
+        days=st.number_input(
+
+            "Days left for exam",
+
+            min_value=1,
+
+            max_value=60,
+
+            value=7
+
+        )
+
+        if st.button(
+
+            "Generate Study Plan"
+
+        ):
+
+            plan=topic_df.head(days)
+
+            for i,row in enumerate(
+
+                plan.itertuples(),
+
+                start=1
+
+            ):
+
+                st.write(
+
+                    f"Day {i} → {row.Topic}"
+
+                )
+
         st.divider()
+
+        # Quiz Mode
+
+        st.subheader(
+
+            "📝 Quiz Mode"
+
+        )
+
+        if len(df)>0:
+
+            q=df.iloc[0]["Question"]
+
+            st.write(
+
+                "Question:"
+
+            )
+
+            st.info(q)
+
+            ans=st.text_area(
+
+                "Your Answer"
+
+            )
+
+            if st.button(
+
+                "Submit Answer"
+
+            ):
+
+                st.success(
+
+                    "✅ Good Attempt! Keep Practicing."
+
+                )
+
+        st.divider()
+
+        # PDF Report
 
         report=generate_report(
 
@@ -711,9 +804,13 @@ if len(all_questions)>0:
 
                 f,
 
-                file_name="AI_Exam_Report.pdf",
+                file_name=
 
-                mime="application/pdf"
+                "PassMate_Pilot_Report.pdf",
+
+                mime=
+
+                "application/pdf"
 
             )
 
@@ -721,28 +818,31 @@ else:
 
     st.info(
 
-        "Upload at least 2-5 PDFs."
+        "👆 Upload at least 2-5 previous year PDFs."
 
     )
+
+
+# ---------------- FOOTER ----------------
 
 st.divider()
 
 st.markdown("""
 
-### Recommended Subjects
+## 🚀 PassMate Pilot
 
-☕ Java Programming
+Your Smart AI Exam Companion
 
-📡 Network Theory
+📚 Predict Important Questions
 
-💾 DBMS
+🧠 Discover Important Topics
 
-🌐 Computer Networks
+📊 Analyze Previous Papers
 
-🖥 Operating System
+🎯 Study Smarter & Pass Confidently
 
 Best Results:
 
-Upload 5-10 previous year papers.
+Upload 5–10 previous year papers.
 
 """)
