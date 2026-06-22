@@ -115,7 +115,7 @@ border-radius:15px;
 
 # ---------------- TITLE ----------------
 
-st.title("🎯 AI Exam Question Predictor Pro")
+st.title("🚀 PassMate Pilot")
 
 st.markdown("""
 
