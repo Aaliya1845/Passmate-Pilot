@@ -1,7 +1,11 @@
 import streamlit as st
 import pdfplumber
 import pandas as pd
+import matplotlib.pyplot as plt
+
 from collections import Counter
+from sklearn.feature_extraction.text import CountVectorizer
+
 import re
 
 # ---------------- PAGE CONFIG ----------------
@@ -12,16 +16,14 @@ st.set_page_config(
     layout="wide"
 )
 
-# ---------------- CUSTOM THEME ----------------
+# ---------------- THEME ----------------
 
 st.markdown("""
 <style>
 
-/* Main Background */
+.stApp{
 
-.stApp {
-
-background: linear-gradient(
+background:linear-gradient(
 135deg,
 #000000,
 #1a120b,
@@ -32,9 +34,7 @@ color:white;
 
 }
 
-/* Headers */
-
-h1,h2,h3 {
+h1,h2,h3{
 
 color:#D7A86E;
 
@@ -42,17 +42,13 @@ text-align:center;
 
 }
 
-/* Paragraph */
-
-p,div,span,label{
+p,div,label,span{
 
 color:white;
 
 }
 
-/* Buttons */
-
-.stButton > button{
+.stButton>button{
 
 background:#5d4037;
 
@@ -64,17 +60,13 @@ border:2px solid #8d6e63;
 
 font-weight:bold;
 
-padding:10px 20px;
-
 }
 
-.stButton > button:hover{
+.stButton>button:hover{
 
 background:#8d6e63;
 
 }
-
-/* File uploader */
 
 section[data-testid="stFileUploader"]{
 
@@ -86,8 +78,6 @@ border-radius:15px;
 
 }
 
-/* Metrics */
-
 [data-testid="metric-container"]{
 
 background:#2d1b14;
@@ -95,34 +85,6 @@ background:#2d1b14;
 padding:15px;
 
 border-radius:15px;
-
-border:1px solid #8d6e63;
-
-}
-
-/* Dataframe */
-
-[data-testid="stDataFrame"]{
-
-background:#1e1e1e;
-
-border-radius:15px;
-
-}
-
-/* Success */
-
-.stSuccess{
-
-background:#2e7d32;
-
-}
-
-/* Warning */
-
-.stWarning{
-
-background:#ef6c00;
 
 }
 
@@ -133,22 +95,21 @@ background:#ef6c00;
 
 st.title("🎯 AI Exam Question Predictor")
 
-st.markdown(
-"""
+st.markdown("""
 ### Upload Previous Year Question Papers
 
 Find:
 
-✅ Most Repeated Questions  
-✅ Important Questions  
-✅ Question Frequency  
-✅ Exam Statistics  
+✅ Repeated Questions  
+✅ Important Topics  
+✅ Topic Probability  
+✅ Charts  
+✅ Download CSV
 
-No API Key Required 🚀
-"""
-)
+No API Required 🚀
+""")
 
-# ---------------- FILE UPLOADER ----------------
+# ---------------- UPLOADER ----------------
 
 uploaded_files = st.file_uploader(
 
@@ -160,19 +121,19 @@ uploaded_files = st.file_uploader(
 
 )
 
-# ---------------- FUNCTION ----------------
+# ---------------- QUESTION EXTRACTION ----------------
 
 def extract_questions(text):
 
-    questions = []
+    questions=[]
 
-    lines = text.split("\n")
+    lines=text.split("\n")
 
     for line in lines:
 
-        line = line.strip()
+        line=line.strip()
 
-        if len(line) < 10:
+        if len(line)<10:
 
             continue
 
@@ -180,27 +141,51 @@ def extract_questions(text):
 
             questions.append(line)
 
-        elif re.match(r"^\d+\.", line):
+        elif re.match(r"^\d+\.",line):
 
             questions.append(line)
 
-        elif re.match(r"^Q\d+", line):
+        elif re.match(r"^Q\d+",line):
 
             questions.append(line)
 
-        elif re.match(r"^Question", line, re.IGNORECASE):
+        elif re.match(r"^Question",line,re.I):
 
             questions.append(line)
 
     return questions
 
+
+# ---------------- TOPIC EXTRACTION ----------------
+
+def extract_topics(questions):
+
+    vectorizer=CountVectorizer(
+
+        stop_words='english',
+
+        max_features=20
+
+    )
+
+    X=vectorizer.fit_transform(questions)
+
+    words=vectorizer.get_feature_names_out()
+
+    counts=X.sum(axis=0).A1
+
+    topics=dict(zip(words,counts))
+
+    return topics
+
+
 # ---------------- PROCESS ----------------
 
-all_questions = []
+all_questions=[]
 
 if uploaded_files:
 
-    with st.spinner("🔍 Analyzing Question Papers..."):
+    with st.spinner("🔍 Analyzing PDFs..."):
 
         for file in uploaded_files:
 
@@ -208,39 +193,50 @@ if uploaded_files:
 
                 with pdfplumber.open(file) as pdf:
 
-                    text = ""
+                    text=""
 
                     for page in pdf.pages:
 
-                        page_text = page.extract_text()
+                        page_text=page.extract_text()
 
                         if page_text:
 
-                            text += page_text + "\n"
+                            text+=page_text+"\n"
 
-                    questions = extract_questions(text)
+                    questions=extract_questions(text)
 
                     all_questions.extend(questions)
 
             except:
 
-                st.warning(f"❌ Could not read {file.name}")
+                st.warning(
+
+                    f"Could not read {file.name}"
+
+                )
+
 
 # ---------------- RESULTS ----------------
 
-if len(all_questions) > 0:
+if len(all_questions)>0:
 
-    counter = Counter(all_questions)
+    counter=Counter(all_questions)
 
-    df = pd.DataFrame(
+    df=pd.DataFrame(
 
         counter.items(),
 
-        columns=["Question","Frequency"]
+        columns=[
+
+            "Question",
+
+            "Frequency"
+
+        ]
 
     )
 
-    df = df.sort_values(
+    df=df.sort_values(
 
         by="Frequency",
 
@@ -248,11 +244,9 @@ if len(all_questions) > 0:
 
     )
 
-    st.success("✅ Analysis Complete!")
+    st.success("✅ Analysis Complete")
 
-    # Metrics
-
-    c1,c2,c3 = st.columns(3)
+    c1,c2,c3=st.columns(3)
 
     c1.metric(
 
@@ -272,15 +266,15 @@ if len(all_questions) > 0:
 
     c3.metric(
 
-        "🔥 Most Repeated",
+        "🔥 Max Frequency",
 
-        df.iloc[0]["Frequency"]
+        df["Frequency"].max()
 
     )
 
     st.divider()
 
-    # Repeated Questions
+    # Questions
 
     st.subheader("🔥 Most Repeated Questions")
 
@@ -296,37 +290,141 @@ if len(all_questions) > 0:
 
     # Important Questions
 
-    st.subheader("🎯 Predicted Important Questions")
+    st.subheader(
 
-    important = df[df["Frequency"] >= 2]
+        "🎯 Predicted Important Questions"
+
+    )
+
+    important=df[
+
+        df["Frequency"]>=2
+
+    ]
 
     if len(important):
 
         for q in important["Question"]:
 
-            st.markdown(f"✅ **{q}**")
+            st.write("✅",q)
 
     else:
 
         st.info(
 
-            "Upload more PDFs for better prediction."
+            "Upload more papers."
 
         )
 
     st.divider()
 
+    # Topics
+
+    st.subheader(
+
+        "🧠 Important Topics"
+
+    )
+
+    topics=extract_topics(
+
+        all_questions
+
+    )
+
+    topic_df=pd.DataFrame(
+
+        topics.items(),
+
+        columns=[
+
+            "Topic",
+
+            "Count"
+
+        ]
+
+    )
+
+    topic_df=topic_df.sort_values(
+
+        by="Count",
+
+        ascending=False
+
+    )
+
+    topic_df["Probability"]=round(
+
+        topic_df["Count"]
+
+        /
+
+        topic_df["Count"].sum()
+
+        *100,
+
+        2
+
+    )
+
+    st.dataframe(
+
+        topic_df,
+
+        use_container_width=True
+
+    )
+
+    st.divider()
+
+    # Chart
+
+    st.subheader(
+
+        "📊 Topic Frequency Chart"
+
+    )
+
+    fig,ax=plt.subplots(
+
+        figsize=(8,4)
+
+    )
+
+    top10=topic_df.head(10)
+
+    ax.bar(
+
+        top10["Topic"],
+
+        top10["Count"]
+
+    )
+
+    plt.xticks(rotation=45)
+
+    st.pyplot(fig)
+
+    st.divider()
+
     # Download CSV
 
-    csv = df.to_csv(index=False)
+    csv=topic_df.to_csv(
+
+        index=False
+
+    )
 
     st.download_button(
 
-        label="⬇ Download Analysis CSV",
+        "⬇ Download Topic Analysis CSV",
 
-        data=csv,
+        csv,
 
-        file_name="exam_analysis.csv",
+        file_name=
+
+        "topic_analysis.csv",
 
         mime="text/csv"
 
@@ -336,24 +434,26 @@ else:
 
     st.info(
 
-        "👆 Upload at least 2-5 previous year question papers to begin analysis."
+        "👆 Upload at least 2-5 PDFs."
 
     )
 
-# ---------------- FOOTER ----------------
-
 st.divider()
 
-st.markdown(
-"""
-### Suggested Papers to Upload
+st.markdown("""
+
+### Best Results
+
+Upload papers of:
 
 📘 Operating System  
 📘 Computer Networks  
-📘 Data Structures  
 📘 DBMS  
+📘 Data Structures  
 📘 Software Engineering  
 
-Best Results: Upload 5 or more previous year papers.
-"""
-)
+The more PDFs you upload,
+
+the better the predictions.
+
+""")
