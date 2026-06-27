@@ -1,8 +1,3 @@
-"""
-PassMate Pilot Pro v3.0
-AI Engine (FINAL FIXED + BULLETPROOF)
-"""
-
 import os
 import time
 import streamlit as st
@@ -10,66 +5,38 @@ import google.generativeai as genai
 
 
 class GeminiEngine:
-    def __init__(self, language="English", temperature=0.3, max_tokens=2048):
+    def __init__(self, language="English", temperature=0.4, max_tokens=2048):
+
         self.language = language
         self.temperature = temperature
         self.max_tokens = max_tokens
 
-        # -------------------------
         # API KEY
-        # -------------------------
-        self.api_key = os.getenv("GEMINI_API_KEY")
+        self.api_key = os.getenv("GEMINI_API_KEY") or st.secrets.get("GEMINI_API_KEY")
 
         if not self.api_key:
-            try:
-                self.api_key = st.secrets["GEMINI_API_KEY"]
-            except:
-                self.api_key = None
-
-        if not self.api_key:
-            st.error("❌ GEMINI_API_KEY missing in Streamlit Secrets")
+            st.error("Missing GEMINI_API_KEY")
             st.stop()
 
         genai.configure(api_key=self.api_key)
 
-        # -------------------------
-        # GET WORKING MODEL
-        # -------------------------
-        self.model = self._get_model()
+        # safe model (no hardcoding risk)
+        self.model = genai.GenerativeModel("gemini-1.5-flash-latest")
 
-    # =========================================================
-    # FIXED MODEL SELECTION (NO 404 EVER)
-    # =========================================================
-    def _get_model(self):
-        try:
-            models = genai.list_models()
+    # ---------------------------------------------------
+    # SAFE + CACHE + QUOTA OPTIMIZED GENERATION
+    # ---------------------------------------------------
+    def _generate(self, prompt: str):
 
-            for m in models:
-                name = m.name.replace("models/", "")
+        cache_key = f"cache_{hash(prompt)}"
 
-                if "generateContent" in m.supported_generation_methods:
-                    if "flash" in name:
-                        return genai.GenerativeModel(name)
+        # CACHE HIT
+        if cache_key in st.session_state:
+            return st.session_state[cache_key]
 
-            # fallback: pick any working model
-            for m in models:
-                name = m.name.replace("models/", "")
-                if "generateContent" in m.supported_generation_methods:
-                    return genai.GenerativeModel(name)
-
-        except Exception as e:
-            st.warning(f"Model list failed, using safe fallback: {e}")
-
-        # LAST RESORT (never crashes)
-        return genai.GenerativeModel("gemini-1.5-flash-latest")
-
-    # =========================================================
-    # GENERATION CORE
-    # =========================================================
-    def _generate(self, prompt: str) -> str:
         last_error = None
 
-        for _ in range(3):
+        for _ in range(2):
             try:
                 response = self.model.generate_content(
                     prompt,
@@ -78,48 +45,48 @@ class GeminiEngine:
                         "max_output_tokens": self.max_tokens,
                     },
                 )
-                return response.text
+
+                result = response.text
+
+                # SAVE CACHE
+                st.session_state[cache_key] = result
+
+                return result
 
             except Exception as e:
                 last_error = str(e)
-                time.sleep(2)
+                time.sleep(1)
 
-        return f"Error generating response: {last_error}"
+        return f"Error: {last_error}"
 
-    # =========================================================
-    # PROMPT ENGINE
-    # =========================================================
-    def generate(self, text: str, task: str) -> str:
-        base = (
-            f"Respond ONLY in {self.language}. "
-            "Format clearly for exam preparation.\n\n"
-            f"CONTENT:\n{text}\n\n"
-        )
+    # ---------------------------------------------------
+    # PROMPTS
+    # ---------------------------------------------------
+    def generate(self, text, task):
+
+        base = f"""
+Respond ONLY in {self.language}.
+Use clear exam-friendly formatting.
+
+CONTENT:
+{text}
+"""
 
         prompts = {
-            "summary": base + "Summarize in bullet points.",
-            "questions": base + "Generate 15 exam questions.",
-            "quiz": base + "Create 10 MCQs with answers.",
-            "flashcards": base + "Create flashcards (term -> meaning).",
-            "study_plan": base + "Create a 7-day study plan.",
+            "summary": base + "\nSummarize in bullet points.",
+            "questions": base + "\nGenerate important exam questions.",
+            "quiz": base + "\nCreate MCQ quiz with answers.",
+            "flashcards": base + "\nCreate flashcards (term → meaning).",
+            "study_plan": base + "\nCreate 7-day study plan.",
         }
 
-        return self._generate(prompts.get(task, "Invalid task"))
+        return self._generate(prompts.get(task, base))
 
-    # =========================================================
-    # PUBLIC METHODS
-    # =========================================================
-    def get_summary(self, text):
-        return self.generate(text, "summary")
-
-    def get_questions(self, text):
-        return self.generate(text, "questions")
-
-    def get_quiz(self, text):
-        return self.generate(text, "quiz")
-
-    def get_flashcards(self, text):
-        return self.generate(text, "flashcards")
-
-    def get_study_plan(self, text):
-        return self.generate(text, "study_plan")
+    # ---------------------------------------------------
+    # METHODS
+    # ---------------------------------------------------
+    def get_summary(self, text): return self.generate(text, "summary")
+    def get_questions(self, text): return self.generate(text, "questions")
+    def get_quiz(self, text): return self.generate(text, "quiz")
+    def get_flashcards(self, text): return self.generate(text, "flashcards")
+    def get_study_plan(self, text): return self.generate(text, "study_plan")
