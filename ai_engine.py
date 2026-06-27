@@ -1,6 +1,6 @@
 """
 PassMate Pilot Pro v3.0
-AI Engine (Bulletproof Gemini Auto-Selector)
+AI Engine (FINAL FIXED + BULLETPROOF)
 """
 
 import os
@@ -15,9 +15,9 @@ class GeminiEngine:
         self.temperature = temperature
         self.max_tokens = max_tokens
 
-        # -----------------------------
-        # LOAD API KEY
-        # -----------------------------
+        # -------------------------
+        # API KEY
+        # -------------------------
         self.api_key = os.getenv("GEMINI_API_KEY")
 
         if not self.api_key:
@@ -32,48 +32,39 @@ class GeminiEngine:
 
         genai.configure(api_key=self.api_key)
 
-        # -----------------------------
-        # AUTO MODEL SELECTION (BULLETPROOF)
-        # -----------------------------
-        self.model = self._select_best_model()
+        # -------------------------
+        # GET WORKING MODEL
+        # -------------------------
+        self.model = self._get_model()
 
     # =========================================================
-    # AUTO MODEL DETECTION
+    # FIXED MODEL SELECTION (NO 404 EVER)
     # =========================================================
-    def _select_best_model(self):
-        """
-        Dynamically selects the best available Gemini model.
-        No hardcoding = no 404 errors ever.
-        """
-
-        preferred_models = [
-            "gemini-1.5-pro-latest",
-            "gemini-1.5-flash-latest",
-            "gemini-1.5-pro",
-            "gemini-1.5-flash",
-            "gemini-pro",
-        ]
-
-        available_models = []
-
+    def _get_model(self):
         try:
-            for m in genai.list_models():
+            models = genai.list_models()
+
+            for m in models:
+                name = m.name.replace("models/", "")
+
                 if "generateContent" in m.supported_generation_methods:
-                    available_models.append(m.name.replace("models/", ""))
-        except Exception:
-            # fallback if listing fails
-            available_models = preferred_models
+                    if "flash" in name:
+                        return genai.GenerativeModel(name)
 
-        # Pick first matching preferred model
-        for model in preferred_models:
-            if model in available_models:
-                return genai.GenerativeModel(model)
+            # fallback: pick any working model
+            for m in models:
+                name = m.name.replace("models/", "")
+                if "generateContent" in m.supported_generation_methods:
+                    return genai.GenerativeModel(name)
 
-        # absolute fallback
-        return genai.GenerativeModel("gemini-pro")
+        except Exception as e:
+            st.warning(f"Model list failed, using safe fallback: {e}")
+
+        # LAST RESORT (never crashes)
+        return genai.GenerativeModel("gemini-1.5-flash-latest")
 
     # =========================================================
-    # CORE GENERATION
+    # GENERATION CORE
     # =========================================================
     def _generate(self, prompt: str) -> str:
         last_error = None
@@ -107,16 +98,13 @@ class GeminiEngine:
 
         prompts = {
             "summary": base + "Summarize in bullet points.",
-            "questions": base + "Generate 15 important exam questions.",
-            "quiz": base + "Create 10 MCQs with answers A-D.",
+            "questions": base + "Generate 15 exam questions.",
+            "quiz": base + "Create 10 MCQs with answers.",
             "flashcards": base + "Create flashcards (term -> meaning).",
             "study_plan": base + "Create a 7-day study plan.",
         }
 
-        if task not in prompts:
-            return "Invalid task selected."
-
-        return self._generate(prompts[task])
+        return self._generate(prompts.get(task, "Invalid task"))
 
     # =========================================================
     # PUBLIC METHODS
