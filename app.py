@@ -211,3 +211,144 @@ if uploaded_file is not None:
 else:
 
     st.info("Upload your notes PDF from the sidebar.")
+
+"""
+PassMate Pilot Pro v3.0
+Main Streamlit App - Part 2 (AI Features)
+"""
+
+import streamlit as st
+
+# ---------------------------------------------------
+# AI ACTION BUTTONS
+# ---------------------------------------------------
+
+st.header("⚡ AI Study Tools")
+
+col1, col2, col3 = st.columns(3)
+col4, col5 = st.columns(2)
+
+pdf_text = st.session_state.get("pdf_text", "")
+
+# -----------------------------
+# SUMMARY
+# -----------------------------
+with col1:
+    if st.button("📄 Generate Summary"):
+        if pdf_text:
+            with st.spinner("Generating summary..."):
+                st.session_state.summary = engine.get_summary(pdf_text)
+
+                st.session_state.history.append({
+                    "time": str(datetime.now()),
+                    "task": "summary"
+                })
+        else:
+            st.warning("Upload a PDF first.")
+
+# -----------------------------
+# IMPORTANT QUESTIONS
+# -----------------------------
+with col2:
+    if st.button("❓ Important Questions"):
+        if pdf_text:
+            with st.spinner("Generating questions..."):
+                st.session_state.important_questions = engine.get_questions(pdf_text)
+
+                st.session_state.history.append({
+                    "time": str(datetime.now()),
+                    "task": "questions"
+                })
+        else:
+            st.warning("Upload a PDF first.")
+
+# -----------------------------
+# QUIZ
+# -----------------------------
+with col3:
+    if st.button("🧠 Generate Quiz"):
+        if pdf_text:
+            with st.spinner("Creating quiz..."):
+                st.session_state.quiz = engine.get_quiz(pdf_text)
+
+                st.session_state.history.append({
+                    "time": str(datetime.now()),
+                    "task": "quiz"
+                })
+        else:
+            st.warning("Upload a PDF first.")
+
+# -----------------------------
+# FLASHCARDS
+# -----------------------------
+with col4:
+    if st.button("🃏 Flashcards"):
+        if pdf_text:
+            with st.spinner("Creating flashcards..."):
+                st.session_state.flashcards = engine.get_flashcards(pdf_text)
+
+                st.session_state.history.append({
+                    "time": str(datetime.now()),
+                    "task": "flashcards"
+                })
+        else:
+            st.warning("Upload a PDF first.")
+
+# -----------------------------
+# STUDY PLAN
+# -----------------------------
+with col5:
+    if st.button("📅 Study Plan"):
+        if pdf_text:
+            with st.spinner("Generating study plan..."):
+                st.session_state.study_plan = engine.get_study_plan(pdf_text)
+
+                st.session_state.history.append({
+                    "time": str(datetime.now()),
+                    "task": "study_plan"
+                })
+        else:
+            st.warning("Upload a PDF first.")
+
+# ---------------------------------------------------
+# OUTPUT DISPLAY SECTION
+# ---------------------------------------------------
+
+st.divider()
+st.header("📊 Results")
+
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    "Summary",
+    "Questions",
+    "Quiz",
+    "Flashcards",
+    "Study Plan"
+])
+
+with tab1:
+    st.write(st.session_state.summary or "No summary generated yet.")
+
+with tab2:
+    st.write(st.session_state.important_questions or "No questions generated yet.")
+
+with tab3:
+    st.write(st.session_state.quiz or "No quiz generated yet.")
+
+with tab4:
+    st.write(st.session_state.flashcards or "No flashcards generated yet.")
+
+with tab5:
+    st.write(st.session_state.study_plan or "No study plan generated yet.")
+
+# ---------------------------------------------------
+# HISTORY PANEL
+# ---------------------------------------------------
+
+st.divider()
+st.subheader("🕒 Session History")
+
+if st.session_state.history:
+    for item in reversed(st.session_state.history[-10:]):
+        st.write(f"• {item['time']} → {item['task']}")
+else:
+    st.info("No activity yet.")
