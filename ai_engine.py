@@ -87,7 +87,7 @@ AI Engine (Gemini Integration) - Part 2
 from typing import List
 
 
-class GeminiEngine:
+class
     # -----------------------------
     # PROMPT HELPERS
     # -----------------------------
@@ -208,8 +208,6 @@ AI Engine (Gemini Integration) - Part 3 (Final)
 
 from typing import Optional
 
-
-class GeminiEngine:
     # -----------------------------
     # PUBLIC METHODS (USED BY APP)
     # -----------------------------
