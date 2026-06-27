@@ -1,6 +1,6 @@
 """
-PassMate Pilot Pro Max v2
-SaaS-Level AI Exam Assistant
+PassMate Pilot SaaS v3
+Startup-Level AI Learning Platform
 """
 
 import streamlit as st
@@ -11,17 +11,17 @@ from utils import extract_text_from_pdf, clean_text
 
 
 # ---------------------------------------------------
-# CONFIG
+# PAGE CONFIG
 # ---------------------------------------------------
 st.set_page_config(
-    page_title="PassMate Pilot Pro",
+    page_title="PassMate Pilot SaaS",
     page_icon="📘",
     layout="wide"
 )
 
 
 # ---------------------------------------------------
-# THEME (BLACK + PURPLE + PINK SAAS STYLE)
+# PREMIUM SAAS THEME (BLACK + PURPLE + PINK)
 # ---------------------------------------------------
 st.markdown(
     """
@@ -30,6 +30,7 @@ st.markdown(
     .stApp {
         background: radial-gradient(circle at top, #05050a, #0b0015, #120018);
         color: #f5e9ff;
+        font-family: 'Arial';
     }
 
     section[data-testid="stSidebar"] {
@@ -37,7 +38,7 @@ st.markdown(
     }
 
     h1, h2, h3 {
-        color: #d946ef;
+        color: #e879f9;
     }
 
     .stButton>button {
@@ -45,33 +46,43 @@ st.markdown(
         color: white;
         border-radius: 12px;
         border: none;
-        width: 100%;
         height: 45px;
         font-weight: bold;
+        transition: 0.2s;
     }
 
     .stButton>button:hover {
         transform: scale(1.03);
-        box-shadow: 0px 0px 15px #ec489955;
+        box-shadow: 0px 0px 18px #ec489966;
     }
 
     textarea {
         background-color: #0b0015 !important;
         color: #f5e9ff !important;
+        border: 1px solid #7c3aed !important;
     }
 
+    /* SaaS CARDS */
     .card {
-        background: linear-gradient(135deg, #120018, #0b0b12);
-        border: 1px solid #7c3aed55;
-        padding: 15px;
-        border-radius: 14px;
-        margin-bottom: 12px;
+        background: rgba(20, 10, 40, 0.6);
+        border: 1px solid rgba(168, 85, 247, 0.3);
+        padding: 16px;
+        border-radius: 16px;
+        margin-bottom: 14px;
+        backdrop-filter: blur(10px);
+        box-shadow: 0px 0px 20px rgba(236, 72, 153, 0.1);
     }
 
     .title {
         color: #ec4899;
         font-weight: bold;
         font-size: 18px;
+        margin-bottom: 8px;
+    }
+
+    .small {
+        font-size: 12px;
+        opacity: 0.7;
     }
 
     </style>
@@ -81,10 +92,10 @@ st.markdown(
 
 
 # ---------------------------------------------------
-# TITLE
+# HEADER
 # ---------------------------------------------------
-st.title("📘 PassMate Pilot Pro Max")
-st.caption("AI-powered exam success assistant")
+st.title("📘 PassMate Pilot SaaS")
+st.caption("AI-powered Smart Learning & Exam Assistant")
 
 
 # ---------------------------------------------------
@@ -101,23 +112,23 @@ if "chat_history" not in st.session_state:
 # SIDEBAR
 # ---------------------------------------------------
 with st.sidebar:
-    st.header("⚙ Settings")
+    st.header("⚙ Control Panel")
 
     language = st.selectbox("Language", ["English", "Hindi", "Marathi"])
-    temperature = st.slider("Creativity", 0.0, 1.0, 0.4)
+    temperature = st.slider("AI Creativity", 0.0, 1.0, 0.4)
 
     uploaded_files = st.file_uploader(
-        "Upload 1–10 PDFs",
+        "Upload PDFs (1–10)",
         type=["pdf"],
         accept_multiple_files=True
     )
 
     st.divider()
 
-    if st.button("🗑 Reset Everything"):
+    if st.button("🧹 Reset Session"):
         st.session_state.pdf_text = ""
         st.session_state.chat_history = []
-        st.success("Reset done")
+        st.success("Session Cleared")
 
 
 # ---------------------------------------------------
@@ -127,39 +138,32 @@ engine = GeminiEngine(language=language, temperature=temperature)
 
 
 # ---------------------------------------------------
-# PDF PROCESSING
+# PDF PROCESSING (SMART MERGE)
 # ---------------------------------------------------
 if uploaded_files:
-    all_text = ""
+    full_text = ""
 
     for file in uploaded_files:
         raw = extract_text_from_pdf(file)
         clean = clean_text(raw)
-        all_text += "\n" + clean
+        full_text += "\n" + clean
 
-    st.session_state.pdf_text = all_text
+    st.session_state.pdf_text = full_text
 
-    st.success(f"{len(uploaded_files)} PDFs loaded")
+    st.success(f"{len(uploaded_files)} PDFs processed successfully")
 
-    st.text_area("Preview", all_text[:2000], height=200)
+    st.text_area("📄 Preview", full_text[:2000], height=200)
 
 else:
-    st.info("Upload PDFs to begin")
+    st.info("Upload PDFs to unlock AI features")
 
 
 text = st.session_state.pdf_text
 
 
 # ---------------------------------------------------
-# AI DASHBOARD BUTTONS
+# CARD UI FUNCTION
 # ---------------------------------------------------
-st.divider()
-st.header("⚡ AI Dashboard")
-
-col1, col2, col3 = st.columns(3)
-col4, col5 = st.columns(2)
-
-
 def card(title, content):
     st.markdown(f"""
     <div class="card">
@@ -167,6 +171,16 @@ def card(title, content):
         <div>{content}</div>
     </div>
     """, unsafe_allow_html=True)
+
+
+# ---------------------------------------------------
+# AI DASHBOARD
+# ---------------------------------------------------
+st.divider()
+st.header("⚡ AI Dashboard")
+
+col1, col2, col3 = st.columns(3)
+col4, col5 = st.columns(2)
 
 
 if col1.button("📄 Summary"):
@@ -191,36 +205,35 @@ if col5.button("📅 Study Plan"):
 
 
 # ---------------------------------------------------
-# CHAT WITH PDF (SAAS FEATURE)
+# AI CHAT SYSTEM (SAAS STYLE)
 # ---------------------------------------------------
 st.divider()
-st.header("💬 AI Chat Assistant")
+st.header("💬 AI Tutor Chat")
 
-user_input = st.text_input("Ask anything from your PDFs")
+query = st.text_input("Ask your AI Tutor anything")
 
-if user_input:
+if query:
     prompt = f"""
     You are PassMate Pilot AI Tutor.
 
-    Use this content:
+    Context:
     {text}
 
     Question:
-    {user_input}
+    {query}
     """
 
     response = engine._generate(prompt)
 
-    st.session_state.chat_history.append((user_input, response))
+    st.session_state.chat_history.append((query, response))
 
-    card("Answer", response)
+    card("AI Answer", response)
 
 
 # ---------------------------------------------------
 # CHAT HISTORY
 # ---------------------------------------------------
-st.divider()
-st.subheader("🧠 Chat History")
+st.subheader("🧠 Recent Conversations")
 
 for q, a in st.session_state.chat_history[-10:]:
     st.markdown(f"**Q:** {q}")
@@ -229,32 +242,40 @@ for q, a in st.session_state.chat_history[-10:]:
 
 
 # ---------------------------------------------------
-# PDF DOWNLOAD REPORT
+# EXPORT SYSTEM
 # ---------------------------------------------------
 st.divider()
 st.header("📄 Export Report")
 
-if st.button("Download Summary Report"):
+if st.button("Generate Report"):
 
     report = f"""
-PASSMATE PILOT REPORT
+PASSMATE PILOT SAAS REPORT
 Generated: {datetime.now()}
 
-SUMMARY:
+========================
+SUMMARY
+========================
 {st.session_state.get('summary', '')}
 
-QUESTIONS:
+========================
+QUESTIONS
+========================
 {st.session_state.get('questions', '')}
 
-QUIZ:
+========================
+QUIZ
+========================
 {st.session_state.get('quiz', '')}
 
-STUDY PLAN:
+========================
+STUDY PLAN
+========================
 {st.session_state.get('study_plan', '')}
 """
 
     st.download_button(
-        "⬇ Download TXT Report",
+        "⬇ Download Report",
         report,
-        file_name="passmate_report.txt"
+        file_name="passmate_pilot_report.txt"
     )
