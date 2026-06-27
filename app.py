@@ -14,7 +14,7 @@ from utils import extract_text_from_pdf, clean_text
 # PAGE CONFIG
 # ---------------------------------------------------
 st.set_page_config(
-    page_title="PassMate Pilot SaaS",
+    page_title="PassMate Pilot ",
     page_icon="📘",
     layout="wide"
 )
