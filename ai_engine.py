@@ -1,6 +1,6 @@
 """
 PassMate Pilot Pro v3.0
-AI Engine (Stable Production Version - FIXED)
+AI Engine (FINAL STABLE VERSION)
 """
 
 import os
@@ -16,7 +16,7 @@ class GeminiEngine:
         self.max_tokens = max_tokens
 
         # -----------------------------
-        # API KEY LOADING (SAFE)
+        # LOAD API KEY SAFELY
         # -----------------------------
         self.api_key = None
 
@@ -33,20 +33,21 @@ class GeminiEngine:
             except:
                 self.api_key = None
 
-        # Stop app if key missing
+        # Stop app if missing
         if not self.api_key:
-            st.error("❌ GEMINI_API_KEY is missing. Add it in Streamlit Secrets.")
+            st.error("❌ GEMINI_API_KEY is missing in Streamlit Secrets")
             st.stop()
 
         # -----------------------------
-        # GEMINI MODEL (FIXED)
+        # GEMINI SETUP (FIXED)
         # -----------------------------
         genai.configure(api_key=self.api_key)
 
-        self.model = genai.GenerativeModel("gemini-1.5-flash")
+        # SAFE MODEL (works in v1beta + Streamlit Cloud)
+        self.model = genai.GenerativeModel("gemini-pro")
 
     # -----------------------------
-    # CORE GENERATION FUNCTION
+    # CORE GENERATION
     # -----------------------------
     def _generate(self, prompt: str) -> str:
         last_error = None
@@ -69,21 +70,21 @@ class GeminiEngine:
         return f"Error generating response: {last_error}"
 
     # -----------------------------
-    # PROMPT ENGINE
+    # PROMPT BUILDER
     # -----------------------------
     def generate(self, text: str, task: str) -> str:
         base = (
             f"Respond ONLY in {self.language}. "
-            "Format for exam preparation.\n\n"
+            "Format clearly for exam preparation.\n\n"
             f"CONTENT:\n{text}\n\n"
         )
 
         prompts = {
             "summary": base + "Summarize in bullet points.",
             "questions": base + "Generate 15 important exam questions.",
-            "quiz": base + "Create 10 MCQs with answers A-D.",
+            "quiz": base + "Create 10 MCQs with options A-D and answers.",
             "flashcards": base + "Create flashcards (term -> meaning).",
-            "study_plan": base + "Create a 7-day study plan.",
+            "study_plan": base + "Create a 7-day structured study plan.",
         }
 
         if task not in prompts:
