@@ -1,6 +1,6 @@
 """
 PassMate Pilot Pro v3.0
-AI Engine (Gemini Integration)
+AI Engine (Clean Fixed Version)
 """
 
 import os
@@ -24,12 +24,14 @@ class GeminiEngine:
                 self.api_key = None
 
         if not self.api_key:
-            raise ValueError("GEMINI_API_KEY not found")
+            raise ValueError("Missing GEMINI_API_KEY")
 
         genai.configure(api_key=self.api_key)
         self.model = genai.GenerativeModel("gemini-1.5-pro")
 
     def _generate(self, prompt: str) -> str:
+        last_error = None
+
         for _ in range(3):
             try:
                 response = self.model.generate_content(
@@ -40,20 +42,25 @@ class GeminiEngine:
                     },
                 )
                 return response.text
+
             except Exception as e:
-                time.sleep(2)
                 last_error = str(e)
+                time.sleep(2)
 
         return f"Error: {last_error}"
 
     def generate(self, text: str, task: str) -> str:
-        base = f"Respond in {self.language}. Use clear exam format.\n\nTEXT:\n{text}\n\n"
+        base = (
+            f"Respond in {self.language}. "
+            "Format for exam preparation.\n\n"
+            f"CONTENT:\n{text}\n\n"
+        )
 
         prompts = {
-            "summary": base + "Summarize notes in bullet points.",
-            "questions": base + "Generate 15 important exam questions.",
-            "quiz": base + "Create 10 MCQs with options A-D.",
-            "flashcards": base + "Create term -> definition flashcards.",
+            "summary": base + "Summarize in bullet points.",
+            "questions": base + "Generate 15 exam questions.",
+            "quiz": base + "Create 10 MCQs with answers.",
+            "flashcards": base + "Create flashcards (term -> meaning).",
             "study_plan": base + "Create a 7-day study plan.",
         }
 
