@@ -1,6 +1,6 @@
 """
 PassMate Pilot Pro v3.0
-AI Engine (Stable Production Version)
+AI Engine (Stable Production Version - FIXED)
 """
 
 import os
@@ -16,32 +16,34 @@ class GeminiEngine:
         self.max_tokens = max_tokens
 
         # -----------------------------
-        # SAFE API KEY LOADING
+        # API KEY LOADING (SAFE)
         # -----------------------------
         self.api_key = None
 
-        # 1. Try environment variable
+        # Try environment variable
         try:
             self.api_key = os.getenv("GEMINI_API_KEY")
         except:
             pass
 
-        # 2. Try Streamlit secrets
+        # Try Streamlit secrets
         if not self.api_key:
             try:
                 self.api_key = st.secrets["GEMINI_API_KEY"]
             except:
                 self.api_key = None
 
-        # -----------------------------
-        # IF NO KEY → STOP SAFELY
-        # -----------------------------
+        # Stop app if key missing
         if not self.api_key:
             st.error("❌ GEMINI_API_KEY is missing. Add it in Streamlit Secrets.")
             st.stop()
 
+        # -----------------------------
+        # GEMINI MODEL (FIXED)
+        # -----------------------------
         genai.configure(api_key=self.api_key)
-        self.model = genai.GenerativeModel("gemini-1.5-pro")
+
+        self.model = genai.GenerativeModel("gemini-1.5-flash")
 
     # -----------------------------
     # CORE GENERATION FUNCTION
@@ -77,7 +79,7 @@ class GeminiEngine:
         )
 
         prompts = {
-            "summary": base + "Summarize in clear bullet points.",
+            "summary": base + "Summarize in bullet points.",
             "questions": base + "Generate 15 important exam questions.",
             "quiz": base + "Create 10 MCQs with answers A-D.",
             "flashcards": base + "Create flashcards (term -> meaning).",
