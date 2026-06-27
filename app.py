@@ -1,354 +1,217 @@
 """
 PassMate Pilot Pro v3.0
-Main Streamlit Application
+Main Streamlit App (FINAL VERSION)
 """
 
-from __future__ import annotations
-
-import os
-import time
+import streamlit as st
 from datetime import datetime
 
-import streamlit as st
-
 from ai_engine import GeminiEngine
-from utils import (
-    extract_text_from_pdf,
-    clean_text,
-    split_into_chunks,
-)
+from utils import extract_text_from_pdf, clean_text
 
-from pdf_report import generate_pdf_report
-from config import (
-    APP_NAME,
-    APP_ICON,
-    APP_VERSION,
-    MAX_FILE_SIZE_MB,
-    DEFAULT_LANGUAGE,
-)
+from config import APP_NAME, APP_ICON, APP_VERSION
 
 
 # ---------------------------------------------------
-# Page Config
+# PAGE CONFIG
 # ---------------------------------------------------
-
 st.set_page_config(
     page_title=APP_NAME,
     page_icon=APP_ICON,
-    layout="wide",
-    initial_sidebar_state="expanded",
+    layout="wide"
 )
 
-# ---------------------------------------------------
-# Session State
-# ---------------------------------------------------
-
-DEFAULTS = {
-    "summary": "",
-    "important_questions": "",
-    "quiz": "",
-    "flashcards": "",
-    "study_plan": "",
-    "notes": "",
-    "history": [],
-    "pdf_text": "",
-}
-
-for key, value in DEFAULTS.items():
-    if key not in st.session_state:
-        st.session_state[key] = value
 
 # ---------------------------------------------------
-# Custom CSS
+# DARK BROWN + BLACK THEME
 # ---------------------------------------------------
-
 st.markdown(
     """
-<style>
+    <style>
 
-.block-container{
-padding-top:1rem;
-padding-bottom:2rem;
-}
+    .stApp {
+        background: linear-gradient(135deg, #0b0b0b, #1a0f0a, #2b1a12);
+        color: #f5f5f5;
+    }
 
-.stButton>button{
-width:100%;
-border-radius:10px;
-height:45px;
-font-weight:bold;
-}
+    section[data-testid="stSidebar"] {
+        background-color: #120b08;
+    }
 
-.card{
-padding:18px;
-border-radius:14px;
-background:#f5f5f5;
-margin-bottom:10px;
-}
+    .stButton>button {
+        background-color: #3b1f14;
+        color: white;
+        border-radius: 10px;
+        border: 1px solid #5a2d1f;
+        width: 100%;
+        height: 45px;
+        font-weight: bold;
+    }
 
-</style>
-""",
-    unsafe_allow_html=True,
+    .stButton>button:hover {
+        background-color: #5a2d1f;
+    }
+
+    textarea {
+        background-color: #120b08 !important;
+        color: #f5f5f5 !important;
+    }
+
+    </style>
+    """,
+    unsafe_allow_html=True
 )
 
-# ---------------------------------------------------
-# Title
-# ---------------------------------------------------
 
+# ---------------------------------------------------
+# TITLE
+# ---------------------------------------------------
 st.title(f"{APP_ICON} {APP_NAME}")
-
 st.caption(f"Version {APP_VERSION}")
 
-st.write(
-"""
-AI-powered exam preparation assistant using Gemini AI.
-Upload notes and instantly generate:
-
-• Smart Summary
-
-• Important Questions
-
-• Quiz
-
-• Flashcards
-
-• Study Plan
-
-• PDF Report
-"""
-)
 
 # ---------------------------------------------------
-# Sidebar
+# SESSION STATE
 # ---------------------------------------------------
+if "pdf_text" not in st.session_state:
+    st.session_state.pdf_text = ""
 
+if "history" not in st.session_state:
+    st.session_state.history = []
+
+
+# ---------------------------------------------------
+# SIDEBAR
+# ---------------------------------------------------
 with st.sidebar:
+    st.header("⚙ Settings")
 
-    st.header("Settings")
-
-    language = st.selectbox(
-        "Output Language",
-        [
-            "English",
-            "Hindi",
-            "Marathi",
-        ],
-        index=0,
-    )
-
-    temperature = st.slider(
-        "AI Creativity",
-        0.0,
-        1.0,
-        0.3,
-        0.1,
-    )
-
-    max_tokens = st.slider(
-        "Maximum Tokens",
-        512,
-        4096,
-        2048,
-    )
+    language = st.selectbox("Language", ["English", "Hindi", "Marathi"])
+    temperature = st.slider("Creativity", 0.0, 1.0, 0.3)
 
     st.divider()
 
-    st.subheader("Upload Notes")
-
-    uploaded_file = st.file_uploader(
-        "Choose PDF",
+    uploaded_files = st.file_uploader(
+        "Upload PDF files (1–10 allowed)",
         type=["pdf"],
-    )
-
-    st.caption(
-        f"Maximum recommended size: {MAX_FILE_SIZE_MB} MB"
+        accept_multiple_files=True
     )
 
     st.divider()
 
-    clear = st.button("🗑 Clear Session")
+    if st.button("🗑 Clear Session"):
+        st.session_state.pdf_text = ""
+        st.session_state.history = []
+        st.success("Cleared!")
 
-    if clear:
-
-        for key in DEFAULTS:
-            st.session_state[key] = DEFAULTS[key]
-
-        st.success("Session Cleared")
-
-        st.rerun()
 
 # ---------------------------------------------------
-# Gemini
+# INIT AI ENGINE
 # ---------------------------------------------------
-
 engine = GeminiEngine(
     language=language,
     temperature=temperature,
-    max_tokens=max_tokens,
+    max_tokens=2048
 )
 
+
 # ---------------------------------------------------
-# PDF Processing
+# MULTI PDF PROCESSING
 # ---------------------------------------------------
+if uploaded_files:
 
-if uploaded_file is not None:
+    all_text = ""
 
-    with st.spinner("Reading PDF..."):
+    for file in uploaded_files:
+        with st.spinner(f"Reading {file.name}..."):
+            text = extract_text_from_pdf(file)
+            text = clean_text(text)
+            all_text += "\n" + text
 
-        raw_text = extract_text_from_pdf(uploaded_file)
+    st.session_state.pdf_text = all_text
 
-        raw_text = clean_text(raw_text)
+    st.success(f"{len(uploaded_files)} PDF(s) loaded successfully!")
 
-        st.session_state.pdf_text = raw_text
-
-    st.success("PDF Loaded Successfully")
-
-    st.text_area(
-        "Preview",
-        raw_text[:3000],
-        height=250,
-    )
+    st.text_area("Preview", all_text[:3000], height=250)
 
 else:
+    st.info("Upload 1–10 PDF files to start.")
 
-    st.info("Upload your notes PDF from the sidebar.")
-
-"""
-PassMate Pilot Pro v3.0
-Main Streamlit App - Part 2 (AI Features)
-"""
-
-import streamlit as st
 
 # ---------------------------------------------------
-# AI ACTION BUTTONS
+# AI FEATURES
 # ---------------------------------------------------
-
-st.header("⚡ AI Study Tools")
+st.divider()
+st.header("⚡ AI Tools")
 
 col1, col2, col3 = st.columns(3)
 col4, col5 = st.columns(2)
 
-pdf_text = st.session_state.get("pdf_text", "")
+pdf_text = st.session_state.pdf_text
 
-# -----------------------------
-# SUMMARY
-# -----------------------------
+
+# Summary
 with col1:
-    if st.button("📄 Generate Summary"):
+    if st.button("📄 Summary"):
         if pdf_text:
-            with st.spinner("Generating summary..."):
-                st.session_state.summary = engine.get_summary(pdf_text)
+            st.session_state.summary = engine.get_summary(pdf_text)
+            st.session_state.history.append("Summary")
 
-                st.session_state.history.append({
-                    "time": str(datetime.now()),
-                    "task": "summary"
-                })
-        else:
-            st.warning("Upload a PDF first.")
-
-# -----------------------------
-# IMPORTANT QUESTIONS
-# -----------------------------
+# Questions
 with col2:
-    if st.button("❓ Important Questions"):
+    if st.button("❓ Questions"):
         if pdf_text:
-            with st.spinner("Generating questions..."):
-                st.session_state.important_questions = engine.get_questions(pdf_text)
+            st.session_state.questions = engine.get_questions(pdf_text)
+            st.session_state.history.append("Questions")
 
-                st.session_state.history.append({
-                    "time": str(datetime.now()),
-                    "task": "questions"
-                })
-        else:
-            st.warning("Upload a PDF first.")
-
-# -----------------------------
-# QUIZ
-# -----------------------------
+# Quiz
 with col3:
-    if st.button("🧠 Generate Quiz"):
+    if st.button("🧠 Quiz"):
         if pdf_text:
-            with st.spinner("Creating quiz..."):
-                st.session_state.quiz = engine.get_quiz(pdf_text)
+            st.session_state.quiz = engine.get_quiz(pdf_text)
+            st.session_state.history.append("Quiz")
 
-                st.session_state.history.append({
-                    "time": str(datetime.now()),
-                    "task": "quiz"
-                })
-        else:
-            st.warning("Upload a PDF first.")
-
-# -----------------------------
-# FLASHCARDS
-# -----------------------------
+# Flashcards
 with col4:
     if st.button("🃏 Flashcards"):
         if pdf_text:
-            with st.spinner("Creating flashcards..."):
-                st.session_state.flashcards = engine.get_flashcards(pdf_text)
+            st.session_state.flashcards = engine.get_flashcards(pdf_text)
+            st.session_state.history.append("Flashcards")
 
-                st.session_state.history.append({
-                    "time": str(datetime.now()),
-                    "task": "flashcards"
-                })
-        else:
-            st.warning("Upload a PDF first.")
-
-# -----------------------------
-# STUDY PLAN
-# -----------------------------
+# Study Plan
 with col5:
     if st.button("📅 Study Plan"):
         if pdf_text:
-            with st.spinner("Generating study plan..."):
-                st.session_state.study_plan = engine.get_study_plan(pdf_text)
+            st.session_state.study_plan = engine.get_study_plan(pdf_text)
+            st.session_state.history.append("Study Plan")
 
-                st.session_state.history.append({
-                    "time": str(datetime.now()),
-                    "task": "study_plan"
-                })
-        else:
-            st.warning("Upload a PDF first.")
 
 # ---------------------------------------------------
-# OUTPUT DISPLAY SECTION
+# OUTPUT
 # ---------------------------------------------------
-
 st.divider()
 st.header("📊 Results")
 
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "Summary",
-    "Questions",
-    "Quiz",
-    "Flashcards",
-    "Study Plan"
-])
+st.subheader("Summary")
+st.write(st.session_state.get("summary", ""))
 
-with tab1:
-    st.write(st.session_state.summary or "No summary generated yet.")
+st.subheader("Questions")
+st.write(st.session_state.get("questions", ""))
 
-with tab2:
-    st.write(st.session_state.important_questions or "No questions generated yet.")
+st.subheader("Quiz")
+st.write(st.session_state.get("quiz", ""))
 
-with tab3:
-    st.write(st.session_state.quiz or "No quiz generated yet.")
+st.subheader("Flashcards")
+st.write(st.session_state.get("flashcards", ""))
 
-with tab4:
-    st.write(st.session_state.flashcards or "No flashcards generated yet.")
+st.subheader("Study Plan")
+st.write(st.session_state.get("study_plan", ""))
 
-with tab5:
-    st.write(st.session_state.study_plan or "No study plan generated yet.")
 
 # ---------------------------------------------------
-# HISTORY PANEL
+# HISTORY
 # ---------------------------------------------------
-
 st.divider()
-st.subheader("🕒 Session History")
+st.subheader("🕒 History")
 
-if st.session_state.history:
-    for item in reversed(st.session_state.history[-10:]):
-        st.write(f"• {item['time']} → {item['task']}")
-else:
-    st.info("No activity yet.")
+st.write(st.session_state.history if st.session_state.history else "No activity yet.")
