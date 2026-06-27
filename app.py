@@ -1,848 +1,213 @@
+"""
+PassMate Pilot Pro v3.0
+Main Streamlit Application
+"""
+
+from __future__ import annotations
+
+import os
+import time
+from datetime import datetime
+
 import streamlit as st
-import pdfplumber
-import pandas as pd
-import matplotlib.pyplot as plt
-import numpy as np
 
-from collections import Counter
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-
-from reportlab.platypus import (
-    SimpleDocTemplate,
-    Paragraph,
-    Spacer
+from ai_engine import GeminiEngine
+from utils import (
+    extract_text_from_pdf,
+    clean_text,
+    split_into_chunks,
 )
 
-from reportlab.lib.styles import getSampleStyleSheet
+from pdf_report import generate_pdf_report
+from config import (
+    APP_NAME,
+    APP_ICON,
+    APP_VERSION,
+    MAX_FILE_SIZE_MB,
+    DEFAULT_LANGUAGE,
+)
 
-import tempfile
-import re
 
-# ---------------- PAGE CONFIG ----------------
+# ---------------------------------------------------
+# Page Config
+# ---------------------------------------------------
 
 st.set_page_config(
-
-    page_title="🚀 PassMate Pilot",
-
-    page_icon="🚀",
-
-    layout="wide"
-
+    page_title=APP_NAME,
+    page_icon=APP_ICON,
+    layout="wide",
+    initial_sidebar_state="expanded",
 )
 
-# ---------------- THEME ----------------
+# ---------------------------------------------------
+# Session State
+# ---------------------------------------------------
 
-st.markdown("""
+DEFAULTS = {
+    "summary": "",
+    "important_questions": "",
+    "quiz": "",
+    "flashcards": "",
+    "study_plan": "",
+    "notes": "",
+    "history": [],
+    "pdf_text": "",
+}
 
+for key, value in DEFAULTS.items():
+    if key not in st.session_state:
+        st.session_state[key] = value
+
+# ---------------------------------------------------
+# Custom CSS
+# ---------------------------------------------------
+
+st.markdown(
+    """
 <style>
 
-.stApp{
-
-background:linear-gradient(
-
-135deg,
-
-#000000,
-
-#1a120b,
-
-#3e2723
-
-);
-
-color:white;
-
-}
-
-h1,h2,h3{
-
-color:#D7A86E;
-
-text-align:center;
-
-}
-
-p,div,label,span{
-
-color:white;
-
+.block-container{
+padding-top:1rem;
+padding-bottom:2rem;
 }
 
 .stButton>button{
-
-background:#5d4037;
-
-color:white;
-
-border-radius:15px;
-
-border:2px solid #8d6e63;
-
+width:100%;
+border-radius:10px;
+height:45px;
 font-weight:bold;
-
 }
 
-.stButton>button:hover{
-
-background:#8d6e63;
-
-}
-
-section[data-testid="stFileUploader"]{
-
-background:#2d1b14;
-
-padding:20px;
-
-border-radius:15px;
-
-}
-
-[data-testid="metric-container"]{
-
-background:#2d1b14;
-
-padding:15px;
-
-border-radius:15px;
-
+.card{
+padding:18px;
+border-radius:14px;
+background:#f5f5f5;
+margin-bottom:10px;
 }
 
 </style>
-
-""", unsafe_allow_html=True)
-
-# ---------------- TITLE ----------------
-
-st.title("🚀 PassMate Pilot")
-
-st.markdown("""
-
-### Your Smart AI Exam Companion
-
-📚 Upload Previous Year Papers
-
-PassMate Pilot helps you discover:
-
-✅ Important Questions
-
-✅ Similar Questions
-
-✅ Important Topics
-
-✅ Probability of Topics
-
-✅ Smart Charts
-
-✅ Download PDF Reports
-
-🎯 Predict Smarter • Study Better • Pass Confidently
-
-""")
-
-# ---------------- FILE UPLOADER ----------------
-
-uploaded_files = st.file_uploader(
-
-    "📄 Upload Previous Year Question Papers",
-
-    type=["pdf"],
-
-    accept_multiple_files=True
-
+""",
+    unsafe_allow_html=True,
 )
 
-# ---------------- QUESTION EXTRACTION ----------------
+# ---------------------------------------------------
+# Title
+# ---------------------------------------------------
 
-def extract_questions(text):
+st.title(f"{APP_ICON} {APP_NAME}")
 
-    questions=[]
+st.caption(f"Version {APP_VERSION}")
 
-    lines=text.split("\n")
+st.write(
+"""
+AI-powered exam preparation assistant using Gemini AI.
+Upload notes and instantly generate:
 
-    for line in lines:
+• Smart Summary
 
-        line=line.strip()
+• Important Questions
 
-        if len(line)<10:
+• Quiz
 
-            continue
+• Flashcards
 
-        if "?" in line:
+• Study Plan
 
-            questions.append(line)
+• PDF Report
+"""
+)
 
-        elif re.match(r"^\d+\.",line):
+# ---------------------------------------------------
+# Sidebar
+# ---------------------------------------------------
 
-            questions.append(line)
+with st.sidebar:
 
-        elif re.match(r"^Q\d+",line):
+    st.header("Settings")
 
-            questions.append(line)
-
-        elif re.match(r"^Question",line,re.I):
-
-            questions.append(line)
-
-    return questions
-
-
-# ---------------- SIMILAR QUESTION DETECTION ----------------
-
-def group_similar_questions(questions):
-
-    if len(questions)<=1:
-
-        return questions
-
-    tfidf=TfidfVectorizer(
-
-        stop_words='english'
-
+    language = st.selectbox(
+        "Output Language",
+        [
+            "English",
+            "Hindi",
+            "Marathi",
+        ],
+        index=0,
     )
 
-    X=tfidf.fit_transform(
-
-        questions
-
+    temperature = st.slider(
+        "AI Creativity",
+        0.0,
+        1.0,
+        0.3,
+        0.1,
     )
 
-    similarity=cosine_similarity(X)
-
-    grouped=[]
-
-    used=set()
-
-    for i in range(len(questions)):
-
-        if i in used:
-
-            continue
-
-        temp=[questions[i]]
-
-        used.add(i)
-
-        for j in range(i+1,len(questions)):
-
-            if j in used:
-
-                continue
-
-            if similarity[i][j]>0.6:
-
-                temp.append(
-
-                    questions[j]
-
-                )
-
-                used.add(j)
-
-        grouped.append(
-
-            temp[0]
-
-        )
-
-    return grouped
-
-
-# ---------------- TOPIC LIST ----------------
-
-TOPICS=[
-
-"deadlock",
-
-"process",
-
-"scheduling",
-
-"thread",
-
-"paging",
-
-"inheritance",
-
-"oop",
-
-"java",
-
-"jdbc",
-
-"exception",
-
-"interface",
-
-"multithreading",
-
-"collection",
-
-"thevenin",
-
-"norton",
-
-"mesh",
-
-"nodal",
-
-"resonance",
-
-"network",
-
-"dbms",
-
-"normalization",
-
-"sql",
-
-"testing",
-
-"osi",
-
-"tcp",
-
-"udp"
-
-]
-
-
-# ---------------- TOPIC EXTRACTION ----------------
-
-def extract_topics(questions):
-
-    topic_count={}
-
-    text=" ".join(
-
-        questions
-
-    ).lower()
-
-    for topic in TOPICS:
-
-        count=text.count(
-
-            topic
-
-        )
-
-        if count>0:
-
-            topic_count[topic]=count
-
-    return topic_count
-
-
-# ---------------- PDF REPORT ----------------
-
-def generate_report(
-
-questions,
-
-topics
-
-):
-
-    temp=tempfile.NamedTemporaryFile(
-
-        delete=False,
-
-        suffix=".pdf"
-
-    )
-
-    doc=SimpleDocTemplate(
-
-        temp.name
-
-    )
-
-    styles=getSampleStyleSheet()
-
-    story=[]
-
-    story.append(
-
-        Paragraph(
-
-            "<b>PassMate Pilot - AI Exam Analysis Report</b>",
-
-            styles["Title"]
-
-        )
-
-    )
-
-    story.append(
-
-        Spacer(
-
-            1,
-
-            20
-
-        )
-
-    )
-
-    story.append(
-
-        Paragraph(
-
-            "<b>Important Questions</b>",
-
-            styles["Heading2"]
-
-        )
-
-    )
-
-    for q in questions[:10]:
-
-        story.append(
-
-            Paragraph(
-
-                q,
-
-                styles["BodyText"]
-
-            )
-
-        )
-
-    story.append(
-
-        Spacer(
-
-            1,
-
-            20
-
-        )
-
-    )
-
-    story.append(
-
-        Paragraph(
-
-            "<b>Important Topics</b>",
-
-            styles["Heading2"]
-
-        )
-
-    )
-
-    for t,c in topics.items():
-
-        story.append(
-
-            Paragraph(
-
-                f"{t} : {c}",
-
-                styles["BodyText"]
-
-            )
-
-        )
-
-    doc.build(
-
-        story
-
-    )
-
-    return temp.name
-
-# ---------------- PROCESS PDFs ----------------
-
-all_questions=[]
-
-if uploaded_files:
-
-    with st.spinner("🔍 Analyzing PDFs..."):
-
-        for file in uploaded_files:
-
-            try:
-
-                with pdfplumber.open(file) as pdf:
-
-                    text=""
-
-                    for page in pdf.pages:
-
-                        page_text=page.extract_text()
-
-                        if page_text:
-
-                            text+=page_text+"\n"
-
-                    questions=extract_questions(text)
-
-                    all_questions.extend(questions)
-
-            except:
-
-                st.warning(
-
-                    f"❌ Could not read {file.name}"
-
-                )
-
-
-# ---------------- RESULTS ----------------
-
-if len(all_questions)>0:
-
-    similar_questions=group_similar_questions(
-
-        all_questions
-
-    )
-
-    counter=Counter(
-
-        similar_questions
-
-    )
-
-    df=pd.DataFrame(
-
-        counter.items(),
-
-        columns=[
-
-            "Question",
-
-            "Frequency"
-
-        ]
-
-    )
-
-    df=df.sort_values(
-
-        by="Frequency",
-
-        ascending=False
-
-    )
-
-    st.success("✅ Analysis Complete")
-
-    c1,c2,c3=st.columns(3)
-
-    c1.metric(
-
-        "📄 Total Questions",
-
-        len(all_questions)
-
-    )
-
-    c2.metric(
-
-        "🧠 Unique Questions",
-
-        len(df)
-
-    )
-
-    c3.metric(
-
-        "🔥 Most Repeated",
-
-        df["Frequency"].max()
-
+    max_tokens = st.slider(
+        "Maximum Tokens",
+        512,
+        4096,
+        2048,
     )
 
     st.divider()
 
-    # Important Questions
+    st.subheader("Upload Notes")
 
-    st.subheader(
-
-        "🔥 Important Questions"
-
+    uploaded_file = st.file_uploader(
+        "Choose PDF",
+        type=["pdf"],
     )
 
-    st.dataframe(
-
-        df,
-
-        use_container_width=True
-
+    st.caption(
+        f"Maximum recommended size: {MAX_FILE_SIZE_MB} MB"
     )
 
     st.divider()
 
-    # Topics
+    clear = st.button("🗑 Clear Session")
 
-    topics=extract_topics(
+    if clear:
 
-        all_questions
+        for key in DEFAULTS:
+            st.session_state[key] = DEFAULTS[key]
 
+        st.success("Session Cleared")
+
+        st.rerun()
+
+# ---------------------------------------------------
+# Gemini
+# ---------------------------------------------------
+
+engine = GeminiEngine(
+    language=language,
+    temperature=temperature,
+    max_tokens=max_tokens,
+)
+
+# ---------------------------------------------------
+# PDF Processing
+# ---------------------------------------------------
+
+if uploaded_file is not None:
+
+    with st.spinner("Reading PDF..."):
+
+        raw_text = extract_text_from_pdf(uploaded_file)
+
+        raw_text = clean_text(raw_text)
+
+        st.session_state.pdf_text = raw_text
+
+    st.success("PDF Loaded Successfully")
+
+    st.text_area(
+        "Preview",
+        raw_text[:3000],
+        height=250,
     )
-
-    topic_df=pd.DataFrame(
-
-        topics.items(),
-
-        columns=[
-
-            "Topic",
-
-            "Count"
-
-        ]
-
-    )
-
-    if len(topic_df)>0:
-
-        topic_df=topic_df.sort_values(
-
-            by="Count",
-
-            ascending=False
-
-        )
-
-        topic_df["Probability"]=round(
-
-            topic_df["Count"]
-
-            /
-
-            topic_df["Count"].sum()
-
-            *100,
-
-            2
-
-        )
-
-        topic_df["Chance"]=round(
-
-            topic_df["Count"]
-
-            /
-
-            topic_df["Count"].max()
-
-            *100,
-
-            0
-
-        )
-
-        st.subheader(
-
-            "🎯 Most Likely To Appear"
-
-        )
-
-        st.dataframe(
-
-            topic_df,
-
-            use_container_width=True
-
-        )
-
-        st.divider()
-
-        # Chart
-
-        st.subheader(
-
-            "📊 Topic Frequency Chart"
-
-        )
-
-        fig,ax=plt.subplots(
-
-            figsize=(8,4)
-
-        )
-
-        top=topic_df.head(10)
-
-        ax.bar(
-
-            top["Topic"],
-
-            top["Count"]
-
-        )
-
-        plt.xticks(
-
-            rotation=45
-
-        )
-
-        st.pyplot(fig)
-
-        st.divider()
-
-        # Study Planner
-
-        st.subheader(
-
-            "📅 Study Planner"
-
-        )
-
-        days=st.number_input(
-
-            "Days left for exam",
-
-            min_value=1,
-
-            max_value=60,
-
-            value=7
-
-        )
-
-        if st.button(
-
-            "Generate Study Plan"
-
-        ):
-
-            plan=topic_df.head(days)
-
-            for i,row in enumerate(
-
-                plan.itertuples(),
-
-                start=1
-
-            ):
-
-                st.write(
-
-                    f"Day {i} → {row.Topic}"
-
-                )
-
-        st.divider()
-
-        # Quiz Mode
-
-        st.subheader(
-
-            "📝 Quiz Mode"
-
-        )
-
-        if len(df)>0:
-
-            q=df.iloc[0]["Question"]
-
-            st.write(
-
-                "Question:"
-
-            )
-
-            st.info(q)
-
-            ans=st.text_area(
-
-                "Your Answer"
-
-            )
-
-            if st.button(
-
-                "Submit Answer"
-
-            ):
-
-                st.success(
-
-                    "✅ Good Attempt! Keep Practicing."
-
-                )
-
-        st.divider()
-
-        # PDF Report
-
-        report=generate_report(
-
-            list(
-
-                df["Question"]
-
-            ),
-
-            topics
-
-        )
-
-        with open(
-
-            report,
-
-            "rb"
-
-        ) as f:
-
-            st.download_button(
-
-                "⬇ Download PDF Report",
-
-                f,
-
-                file_name=
-
-                "PassMate_Pilot_Report.pdf",
-
-                mime=
-
-                "application/pdf"
-
-            )
 
 else:
 
-    st.info(
-
-        "👆 Upload at least 2-5 previous year PDFs."
-
-    )
-
-
-# ---------------- FOOTER ----------------
-
-st.divider()
-
-st.markdown("""
-
-## 🚀 PassMate Pilot
-
-Your Smart AI Exam Companion
-
-📚 Predict Important Questions
-
-🧠 Discover Important Topics
-
-📊 Analyze Previous Papers
-
-🎯 Study Smarter & Pass Confidently
-
-Best Results:
-
-Upload 5–10 previous year papers.
-
-""")
+    st.info("Upload your notes PDF from the sidebar.")
