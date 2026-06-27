@@ -1,38 +1,39 @@
 """
-PassMate Pilot (Ultra UI Version)
-Black + Purple + Pink AI SaaS Style
+PassMate Pilot Pro Max v2
+SaaS-Level AI Exam Assistant
 """
 
 import streamlit as st
+from datetime import datetime
 
 from ai_engine import GeminiEngine
 from utils import extract_text_from_pdf, clean_text
 
 
 # ---------------------------------------------------
-# PAGE CONFIG
+# CONFIG
 # ---------------------------------------------------
 st.set_page_config(
-    page_title="PassMate Pilot",
+    page_title="PassMate Pilot Pro",
     page_icon="📘",
     layout="wide"
 )
 
 
 # ---------------------------------------------------
-# ULTRA MODERN DARK THEME (BLACK + PURPLE + PINK)
+# THEME (BLACK + PURPLE + PINK SAAS STYLE)
 # ---------------------------------------------------
 st.markdown(
     """
     <style>
 
     .stApp {
-        background: radial-gradient(circle at top, #07070c, #0a0015, #120018);
+        background: radial-gradient(circle at top, #05050a, #0b0015, #120018);
         color: #f5e9ff;
     }
 
     section[data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #0b0b10, #1a0025);
+        background: linear-gradient(180deg, #0b0015, #1a0025);
     }
 
     h1, h2, h3 {
@@ -47,43 +48,30 @@ st.markdown(
         width: 100%;
         height: 45px;
         font-weight: bold;
-        box-shadow: 0px 0px 10px #7c3aed55;
     }
 
     .stButton>button:hover {
-        background: linear-gradient(90deg, #ec4899, #7c3aed);
-        transform: scale(1.02);
+        transform: scale(1.03);
+        box-shadow: 0px 0px 15px #ec489955;
     }
 
     textarea {
         background-color: #0b0015 !important;
         color: #f5e9ff !important;
-        border: 1px solid #7c3aed !important;
     }
 
-    /* ---------------- AI OUTPUT CARDS ---------------- */
-
-    .ai-card {
-        background: linear-gradient(135deg, #120018, #0a0a12);
+    .card {
+        background: linear-gradient(135deg, #120018, #0b0b12);
         border: 1px solid #7c3aed55;
         padding: 15px;
-        border-radius: 15px;
-        margin-bottom: 15px;
-        box-shadow: 0px 0px 12px #ec489922;
+        border-radius: 14px;
+        margin-bottom: 12px;
     }
 
-    .ai-title {
+    .title {
         color: #ec4899;
-        font-size: 18px;
         font-weight: bold;
-        margin-bottom: 8px;
-    }
-
-    .highlight-box {
-        background: linear-gradient(90deg, #7c3aed22, #ec489922);
-        padding: 12px;
-        border-radius: 10px;
-        border-left: 4px solid #ec4899;
+        font-size: 18px;
     }
 
     </style>
@@ -95,8 +83,8 @@ st.markdown(
 # ---------------------------------------------------
 # TITLE
 # ---------------------------------------------------
-st.title("📘 PassMate Pilot")
-st.caption("Ultra AI Exam Assistant — Dark SaaS Edition")
+st.title("📘 PassMate Pilot Pro Max")
+st.caption("AI-powered exam success assistant")
 
 
 # ---------------------------------------------------
@@ -104,6 +92,9 @@ st.caption("Ultra AI Exam Assistant — Dark SaaS Edition")
 # ---------------------------------------------------
 if "pdf_text" not in st.session_state:
     st.session_state.pdf_text = ""
+
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
 
 
 # ---------------------------------------------------
@@ -116,13 +107,16 @@ with st.sidebar:
     temperature = st.slider("Creativity", 0.0, 1.0, 0.4)
 
     uploaded_files = st.file_uploader(
-        "Upload PDFs (1–10)",
+        "Upload 1–10 PDFs",
         type=["pdf"],
         accept_multiple_files=True
     )
 
-    if st.button("🗑 Reset"):
+    st.divider()
+
+    if st.button("🗑 Reset Everything"):
         st.session_state.pdf_text = ""
+        st.session_state.chat_history = []
         st.success("Reset done")
 
 
@@ -133,64 +127,134 @@ engine = GeminiEngine(language=language, temperature=temperature)
 
 
 # ---------------------------------------------------
-# MULTI PDF PROCESSING
+# PDF PROCESSING
 # ---------------------------------------------------
 if uploaded_files:
-    text = ""
+    all_text = ""
 
     for file in uploaded_files:
         raw = extract_text_from_pdf(file)
-        text += clean_text(raw) + "\n"
+        clean = clean_text(raw)
+        all_text += "\n" + clean
 
-    st.session_state.pdf_text = text
+    st.session_state.pdf_text = all_text
 
     st.success(f"{len(uploaded_files)} PDFs loaded")
 
-    st.markdown("### 📄 Preview")
-    st.text_area("", text[:2000], height=200)
+    st.text_area("Preview", all_text[:2000], height=200)
 
 else:
-    st.info("Upload PDFs to start analysis")
+    st.info("Upload PDFs to begin")
 
 
-pdf_text = st.session_state.pdf_text
+text = st.session_state.pdf_text
 
 
 # ---------------------------------------------------
-# AI TOOL BUTTONS
+# AI DASHBOARD BUTTONS
 # ---------------------------------------------------
 st.divider()
-st.header("⚡ AI Tools")
+st.header("⚡ AI Dashboard")
 
 col1, col2, col3 = st.columns(3)
 col4, col5 = st.columns(2)
 
 
-def show_card(title, content):
+def card(title, content):
     st.markdown(f"""
-    <div class="ai-card">
-        <div class="ai-title">{title}</div>
-        <div class="highlight-box">{content}</div>
+    <div class="card">
+        <div class="title">{title}</div>
+        <div>{content}</div>
     </div>
     """, unsafe_allow_html=True)
 
 
 if col1.button("📄 Summary"):
-    result = engine.get_summary(pdf_text)
-    show_card("Summary", result)
+    st.session_state.summary = engine.get_summary(text)
+    card("Summary", st.session_state.summary)
 
 if col2.button("❓ Questions"):
-    result = engine.get_questions(pdf_text)
-    show_card("Important Questions", result)
+    st.session_state.questions = engine.get_questions(text)
+    card("Important Questions", st.session_state.questions)
 
 if col3.button("🧠 Quiz"):
-    result = engine.get_quiz(pdf_text)
-    show_card("Quiz", result)
+    st.session_state.quiz = engine.get_quiz(text)
+    card("Quiz", st.session_state.quiz)
 
 if col4.button("🃏 Flashcards"):
-    result = engine.get_flashcards(pdf_text)
-    show_card("Flashcards", result)
+    st.session_state.flashcards = engine.get_flashcards(text)
+    card("Flashcards", st.session_state.flashcards)
 
 if col5.button("📅 Study Plan"):
-    result = engine.get_study_plan(pdf_text)
-    show_card("Study Plan", result)
+    st.session_state.study_plan = engine.get_study_plan(text)
+    card("Study Plan", st.session_state.study_plan)
+
+
+# ---------------------------------------------------
+# CHAT WITH PDF (SAAS FEATURE)
+# ---------------------------------------------------
+st.divider()
+st.header("💬 AI Chat Assistant")
+
+user_input = st.text_input("Ask anything from your PDFs")
+
+if user_input:
+    prompt = f"""
+    You are PassMate Pilot AI Tutor.
+
+    Use this content:
+    {text}
+
+    Question:
+    {user_input}
+    """
+
+    response = engine._generate(prompt)
+
+    st.session_state.chat_history.append((user_input, response))
+
+    card("Answer", response)
+
+
+# ---------------------------------------------------
+# CHAT HISTORY
+# ---------------------------------------------------
+st.divider()
+st.subheader("🧠 Chat History")
+
+for q, a in st.session_state.chat_history[-10:]:
+    st.markdown(f"**Q:** {q}")
+    st.markdown(f"**A:** {a}")
+    st.write("---")
+
+
+# ---------------------------------------------------
+# PDF DOWNLOAD REPORT
+# ---------------------------------------------------
+st.divider()
+st.header("📄 Export Report")
+
+if st.button("Download Summary Report"):
+
+    report = f"""
+PASSMATE PILOT REPORT
+Generated: {datetime.now()}
+
+SUMMARY:
+{st.session_state.get('summary', '')}
+
+QUESTIONS:
+{st.session_state.get('questions', '')}
+
+QUIZ:
+{st.session_state.get('quiz', '')}
+
+STUDY PLAN:
+{st.session_state.get('study_plan', '')}
+"""
+
+    st.download_button(
+        "⬇ Download TXT Report",
+        report,
+        file_name="passmate_report.txt"
+    )
