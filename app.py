@@ -94,7 +94,7 @@ st.markdown(
 # ---------------------------------------------------
 # HEADER
 # ---------------------------------------------------
-st.title("📘 PassMate Pilot SaaS")
+st.title("📘 PassMate Pilot")
 st.caption("AI-powered Smart Learning & Exam Assistant")
 
 
