@@ -1,225 +1,59 @@
 """
-PassMate Pilot v2.0
-Configuration File
+PassMate Pilot Pro v3.0
+Central Configuration File
 """
 
-import streamlit as st
+# ---------------------------------------------------
+# APP METADATA
+# ---------------------------------------------------
 
-# ===========================
-# APP CONFIG
-# ===========================
+APP_NAME = "PassMate Pilot Pro"
+APP_ICON = "📘"
+APP_VERSION = "3.0.0"
 
-APP_NAME = "🚀 PassMate Pilot"
+# ---------------------------------------------------
+# FILE LIMITS
+# ---------------------------------------------------
 
-APP_TAGLINE = "Your Smart AI Exam Companion"
+MAX_FILE_SIZE_MB = 10
 
-VERSION = "2.0 Professional"
+# ---------------------------------------------------
+# DEFAULT SETTINGS
+# ---------------------------------------------------
 
-DEFAULT_THEME = "Dark"
+DEFAULT_LANGUAGE = "English"
 
-# ===========================
-# GEMINI MODEL
-# ===========================
+DEFAULT_TEMPERATURE = 0.3
+DEFAULT_MAX_TOKENS = 2048
 
-GEMINI_MODEL = "gemini-2.5-flash"
+# ---------------------------------------------------
+# AI SETTINGS
+# ---------------------------------------------------
 
-# ===========================
-# SUBJECT TOPICS
-# ===========================
+GEMINI_MODEL = "gemini-1.5-pro"
 
-SUBJECT_TOPICS = {
+RETRY_ATTEMPTS = 3
+RETRY_DELAY_SECONDS = 2
 
-    "Operating System": [
-        "process",
-        "thread",
-        "deadlock",
-        "paging",
-        "memory",
-        "cpu scheduling",
-        "semaphore",
-        "mutex",
-        "virtual memory"
-    ],
+# ---------------------------------------------------
+# UI SETTINGS
+# ---------------------------------------------------
 
-    "DBMS": [
-        "dbms",
-        "sql",
-        "normalization",
-        "transaction",
-        "acid",
-        "join",
-        "er diagram",
-        "indexing"
-    ],
+SIDEBAR_WIDTH = 300
 
-    "Computer Networks": [
-        "osi",
-        "tcp",
-        "udp",
-        "ip",
-        "routing",
-        "switch",
-        "network",
-        "dns",
-        "http"
-    ],
+THEME_PRIMARY_COLOR = "#4F46E5"
 
-    "Java": [
-        "java",
-        "oop",
-        "inheritance",
-        "polymorphism",
-        "exception",
-        "interface",
-        "collection",
-        "jdbc",
-        "multithreading"
-    ],
+# ---------------------------------------------------
+# FEATURES TOGGLE (FOR SCALING LATER)
+# ---------------------------------------------------
 
-    "Python": [
-        "python",
-        "list",
-        "tuple",
-        "dictionary",
-        "numpy",
-        "pandas",
-        "function",
-        "oop"
-    ],
+ENABLE_FLASHCARDS = True
+ENABLE_QUIZ = True
+ENABLE_STUDY_PLAN = True
+ENABLE_PDF_EXPORT = True
 
-    "Machine Learning": [
-        "machine learning",
-        "regression",
-        "classification",
-        "clustering",
-        "decision tree",
-        "random forest",
-        "svm",
-        "naive bayes",
-        "knn"
-    ]
-}
+# ---------------------------------------------------
+# SESSION SETTINGS
+# ---------------------------------------------------
 
-# ===========================
-# COLORS
-# ===========================
-
-PRIMARY = "#D7A86E"
-
-SECONDARY = "#5D4037"
-
-BACKGROUND = "#000000"
-
-CARD = "#2D1B14"
-
-TEXT = "#FFFFFF"
-
-SUCCESS = "#00C853"
-
-WARNING = "#FFC107"
-
-ERROR = "#FF5252"
-
-# ===========================
-# PDF SETTINGS
-# ===========================
-
-PDF_TITLE = "PassMate Pilot AI Report"
-
-PDF_AUTHOR = "PassMate Pilot"
-
-# ===========================
-# DEFAULT PROMPTS
-# ===========================
-
-SUMMARY_PROMPT = """
-Summarize these exam questions.
-Generate:
-- Important topics
-- Frequently asked concepts
-- Revision notes
-"""
-
-QUESTION_PROMPT = """
-Predict the most probable university examination questions based on the uploaded previous year papers.
-Generate:
-- 2 Mark Questions
-- 5 Mark Questions
-- 10 Mark Questions
-"""
-
-EXPLAIN_PROMPT = """
-Explain this topic in simple language suitable for university exam preparation.
-Include examples wherever possible.
-"""
-
-STUDY_PLAN_PROMPT = """
-Create an intelligent study plan according to the remaining number of days before the exam.
-"""
-
-# ===========================
-# PAGE STYLE
-# ===========================
-
-CUSTOM_CSS = """
-<style>
-
-.stApp{
-background:linear-gradient(
-135deg,
-#000000,
-#1A120B,
-#3E2723
-);
-color:white;
-}
-
-h1,h2,h3{
-color:#D7A86E;
-text-align:center;
-}
-
-.stButton>button{
-background:#5D4037;
-color:white;
-border-radius:12px;
-border:none;
-font-weight:bold;
-}
-
-.stButton>button:hover{
-background:#8D6E63;
-}
-
-[data-testid="metric-container"]{
-background:#2D1B14;
-padding:18px;
-border-radius:15px;
-}
-
-</style>
-"""
-
-# ===========================
-# STREAMLIT CONFIG
-# ===========================
-
-def setup_page():
-
-    st.set_page_config(
-
-        page_title=APP_NAME,
-
-        page_icon="🚀",
-
-        layout="wide"
-
-    )
-
-    st.markdown(
-
-        CUSTOM_CSS,
-
-        unsafe_allow_html=True
-
-    )
+MAX_HISTORY_ITEMS = 20
